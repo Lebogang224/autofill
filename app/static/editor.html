@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AutoFill — Template Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0: #07080c; --bg-1: #0d0f15; --bg-2: #141821;
+    --line: rgba(255,255,255,0.08); --line-strong: rgba(255,255,255,0.16);
+    --text: #e7e9ee; --text-dim: #9aa3b2; --text-faint: #6b7280;
+    --accent: #7c5cff; --accent-2: #22d3ee;
+    --good: #34d399; --warn: #fbbf24; --bad: #f87171;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg-0); color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  a { color: var(--accent-2); text-decoration: none; }
+  button, input, select { font: inherit; color: inherit; }
+
+  .app { display: grid; grid-template-rows: 56px 1fr; height: 100vh; }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 0 16px;
+    border-bottom: 1px solid var(--line); background: var(--bg-1); }
+  .topbar .name { font-weight: 600; }
+  .topbar .meta { color: var(--text-faint); font-size: 12px; }
+  .topbar .spacer { flex: 1; }
+  .pill { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.04);
+    border: 1px solid var(--line); font-size: 12px; color: var(--text-dim); }
+  .btn { cursor: pointer; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line-strong);
+    background: rgba(255,255,255,0.04); color: var(--text); transition: 120ms; }
+  .btn:hover { background: rgba(255,255,255,0.08); }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #5b8cff); border-color: transparent; font-weight: 600; }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-ghost { background: transparent; }
+  .btn-danger { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.35); color: #fecaca; }
+
+  .main { display: grid; grid-template-columns: 200px 1fr 320px; min-height: 0; }
+  .sidebar { border-right: 1px solid var(--line); padding: 14px; overflow: auto; background: var(--bg-1); }
+  .sidebar h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+  .page-thumb { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px;
+    cursor: pointer; opacity: 0.6; transition: 120ms; }
+  .page-thumb:hover { opacity: 0.85; }
+  .page-thumb.active { border-color: var(--accent); opacity: 1; box-shadow: 0 0 0 2px rgba(124,92,255,0.25); }
+  .page-num { color: var(--text-faint); font-size: 11px; text-align: center; margin: -4px 0 8px; }
+
+  .canvas-wrap { position: relative; overflow: auto; padding: 24px; background: #0a0c12;
+    background-image: linear-gradient(45deg, #0c0e15 25%, transparent 25%),
+                      linear-gradient(-45deg, #0c0e15 25%, transparent 25%);
+    background-size: 16px 16px; }
+  .canvas-stage { position: relative; margin: 0 auto; width: fit-content;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.7); border-radius: 4px; overflow: hidden; }
+  .canvas-stage img { display: block; user-select: none; -webkit-user-drag: none; }
+  .field-layer { position: absolute; inset: 0; }
+  .field-box { position: absolute; border: 1.5px solid var(--accent); background: rgba(124,92,255,0.16);
+    cursor: move; box-sizing: border-box; }
+  .field-box .label { position: absolute; top: -20px; left: 0; background: var(--accent); color: white;
+    font-size: 11px; padding: 1px 6px; border-radius: 4px 4px 0 0; white-space: nowrap; max-width: 180px;
+    overflow: hidden; text-overflow: ellipsis; }
+  .field-box.checkbox { background: rgba(34,211,238,0.16); border-color: var(--accent-2); }
+  .field-box.checkbox .label { background: var(--accent-2); color: #07080c; }
+  .field-box.selected { box-shadow: 0 0 0 2px rgba(255,255,255,0.6); z-index: 5; }
+  .field-box .resize { position: absolute; bottom: -5px; right: -5px; width: 10px; height: 10px;
+    background: var(--accent); border: 2px solid white; border-radius: 2px; cursor: nwse-resize; }
+
+  .props { border-left: 1px solid var(--line); padding: 14px; overflow: auto; background: var(--bg-1); }
+  .props h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+  .field-list { display: grid; gap: 6px; margin-bottom: 18px; }
+  .field-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px;
+    background: rgba(255,255,255,0.025); border: 1px solid var(--line); cursor: pointer; }
+  .field-row:hover { background: rgba(255,255,255,0.05); }
+  .field-row.selected { border-color: var(--accent); background: rgba(124,92,255,0.1); }
+  .field-row .name { font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .field-row .badge { font-size: 10px; color: var(--text-faint); padding: 1px 6px; border-radius: 4px;
+    border: 1px solid var(--line); }
+  .props-form { display: grid; gap: 10px; }
+  .props-form label { display: grid; gap: 4px; font-size: 11px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.06em; }
+  .props-form input, .props-form select {
+    background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: 6px;
+    padding: 8px 10px; color: var(--text); font-size: 13px;
+  }
+  .props-form input:focus, .props-form select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .mode-toggle { display: inline-flex; padding: 3px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px; }
+  .mode-toggle button { background: transparent; border: 0; color: var(--text-dim); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .mode-toggle button[aria-pressed="true"] { background: rgba(255,255,255,0.08); color: var(--text); }
+
+  .toast-wrap { position: fixed; bottom: 24px; right: 24px; display: grid; gap: 10px; z-index: 100; }
+  .toast { background: var(--bg-2); border: 1px solid var(--line-strong); padding: 10px 14px; border-radius: 10px;
+    box-shadow: 0 12px 40px -12px rgba(0,0,0,0.6); font-size: 13px; }
+  .toast.ok { border-color: rgba(52,211,153,0.4); }
+  .toast.bad { border-color: rgba(248,113,113,0.4); }
+  .toast.warn { border-color: rgba(251,191,36,0.4); }
+
+  .empty { color: var(--text-faint); font-size: 12px; padding: 12px; border: 1px dashed var(--line); border-radius: 8px; text-align: center; }
+  .hint { color: var(--text-faint); font-size: 12px; line-height: 1.5; }
+  .crosshair { cursor: crosshair !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <a href="/" class="pill">← Back</a>
+    <div>
+      <div class="name" id="tpl-name">Loading…</div>
+      <div class="meta" id="tpl-meta"></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="mode-toggle" id="mode">
+      <button data-mode="select" aria-pressed="true">Select</button>
+      <button data-mode="text" aria-pressed="false">+ Text field</button>
+      <button data-mode="checkbox" aria-pressed="false">+ Checkbox</button>
+    </div>
+    <button class="btn" id="test-fill">Test fill</button>
+    <button class="btn btn-primary" id="save">Save</button>
+  </div>
+
+  <div class="main">
+    <aside class="sidebar" id="thumbs"></aside>
+
+    <div class="canvas-wrap" id="canvas-wrap">
+      <div class="canvas-stage" id="stage">
+        <img id="page-img" alt="page" />
+        <div class="field-layer" id="field-layer"></div>
+      </div>
+    </div>
+
+    <aside class="props">
+      <h4>Fields <span id="field-count" style="color: var(--text-faint); font-weight: normal;"></span></h4>
+      <div class="field-list" id="field-list"></div>
+
+      <h4>Properties</h4>
+      <div id="props-pane">
+        <div class="empty" id="no-selection">Select a field or draw a new one on the page.</div>
+        <form class="props-form" id="props-form" hidden>
+          <label>Name (key)
+            <input name="name" required pattern="[A-Za-z][A-Za-z0-9_\-]*" />
+          </label>
+          <label>Type
+            <select name="type">
+              <option value="text">Text</option>
+              <option value="checkbox">Checkbox</option>
+            </select>
+          </label>
+          <div class="row">
+            <label>Font size
+              <input name="font_size" type="number" min="6" max="48" step="0.5" />
+            </label>
+            <label>Align
+              <select name="align">
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <label>X (pt) <input name="x" type="number" step="1" /></label>
+            <label>Y (pt) <input name="y" type="number" step="1" /></label>
+          </div>
+          <div class="row">
+            <label>Width <input name="width" type="number" step="1" /></label>
+            <label>Height <input name="height" type="number" step="1" /></label>
+          </div>
+          <div class="row">
+            <label>Page <input name="page" type="number" step="1" min="0" /></label>
+            <button type="button" class="btn btn-danger" id="delete-field">Delete</button>
+          </div>
+        </form>
+        <p class="hint" style="margin-top: 18px;">
+          Tip: switch to "+ Text field" or "+ Checkbox" then click-drag on the page to draw a new field.
+          Drag any field to move; drag the bottom-right handle to resize.
+        </p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const params = new URLSearchParams(location.search);
+const HASH = params.get('h');
+if (!HASH) { document.body.innerHTML = '<p style="padding:40px">Missing template hash.</p>'; throw 0; }
+
+const state = {
+  meta: null,
+  fields: [],
+  selectedId: null,
+  pageIndex: 0,
+  mode: 'select',
+  scale: 1,
+  pxPerPt: 1,
+};
+
+function uid() { return Math.random().toString(36).slice(2, 9); }
+function toast(msg, kind='ok') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+async function loadTemplate() {
+  const r = await fetch(`/api/templates/${HASH}`);
+  if (!r.ok) { toast('Failed to load template', 'bad'); return; }
+  state.meta = await r.json();
+  state.fields = (state.meta.fields || []).map(f => ({ id: uid(), ...f }));
+  $('#tpl-name').textContent = state.meta.name;
+  $('#tpl-meta').textContent = `${state.meta.pages.length} page${state.meta.pages.length>1?'s':''} · ${state.meta.hash}`;
+  state.pxPerPt = state.meta.scale;
+  renderThumbs();
+  selectPage(0);
+  renderFieldList();
+}
+
+function renderThumbs() {
+  const wrap = $('#thumbs');
+  wrap.innerHTML = '<h4>Pages</h4>';
+  state.meta.pages.forEach(p => {
+    const img = document.createElement('img');
+    img.className = 'page-thumb' + (p.index === state.pageIndex ? ' active' : '');
+    img.src = `/api/templates/${HASH}/page/${p.index}`;
+    img.addEventListener('click', () => selectPage(p.index));
+    const num = document.createElement('div');
+    num.className = 'page-num';
+    num.textContent = `Page ${p.index + 1}`;
+    wrap.appendChild(img);
+    wrap.appendChild(num);
+  });
+}
+
+function selectPage(i) {
+  state.pageIndex = i;
+  const p = state.meta.pages[i];
+  const img = $('#page-img');
+  img.src = `/api/templates/${HASH}/page/${i}`;
+  img.style.width = p.image_w + 'px';
+  img.style.height = p.image_h + 'px';
+  $('#stage').style.width = p.image_w + 'px';
+  $('#stage').style.height = p.image_h + 'px';
+  $$('.page-thumb').forEach((t, idx) => t.classList.toggle('active', idx === i));
+  renderFieldsOnCanvas();
+}
+
+function renderFieldsOnCanvas() {
+  const layer = $('#field-layer');
+  layer.innerHTML = '';
+  state.fields.filter(f => f.page === state.pageIndex).forEach(f => {
+    const box = document.createElement('div');
+    box.className = 'field-box ' + (f.type === 'checkbox' ? 'checkbox' : '');
+    if (f.id === state.selectedId) box.classList.add('selected');
+    box.style.left = (f.x * state.pxPerPt) + 'px';
+    box.style.top = (f.y * state.pxPerPt) + 'px';
+    box.style.width = (f.width * state.pxPerPt) + 'px';
+    box.style.height = (f.height * state.pxPerPt) + 'px';
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = f.name + (f.type === 'checkbox' ? ' ☑' : '');
+    box.appendChild(label);
+    const handle = document.createElement('div');
+    handle.className = 'resize';
+    box.appendChild(handle);
+    box.addEventListener('mousedown', e => beginInteract(e, f, box, handle));
+    layer.appendChild(box);
+  });
+}
+
+function beginInteract(e, f, box, handle) {
+  e.stopPropagation();
+  selectField(f.id);
+  const isResize = e.target === handle;
+  const startX = e.clientX, startY = e.clientY;
+  const orig = { x: f.x, y: f.y, w: f.width, h: f.height };
+  function move(ev) {
+    const dx = (ev.clientX - startX) / state.pxPerPt;
+    const dy = (ev.clientY - startY) / state.pxPerPt;
+    if (isResize) {
+      f.width = Math.max(8, orig.w + dx);
+      f.height = Math.max(8, orig.h + dy);
+    } else {
+      f.x = Math.max(0, orig.x + dx);
+      f.y = Math.max(0, orig.y + dy);
+    }
+    renderFieldsOnCanvas();
+    syncPropsForm();
+  }
+  function up() {
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', up);
+  }
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', up);
+}
+
+// Click-drag to create on stage
+let creating = null;
+$('#stage').addEventListener('mousedown', e => {
+  if (state.mode === 'select') return;
+  if (e.target.closest('.field-box')) return;
+  const rect = $('#stage').getBoundingClientRect();
+  const x0 = (e.clientX - rect.left) / state.pxPerPt;
+  const y0 = (e.clientY - rect.top) / state.pxPerPt;
+  creating = { x0, y0, type: state.mode };
+  e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+  if (!creating) return;
+  const rect = $('#stage').getBoundingClientRect();
+  const x1 = (e.clientX - rect.left) / state.pxPerPt;
+  const y1 = (e.clientY - rect.top) / state.pxPerPt;
+  creating.preview = { x: Math.min(creating.x0, x1), y: Math.min(creating.y0, y1),
+                       w: Math.abs(x1 - creating.x0), h: Math.abs(y1 - creating.y0) };
+  renderPreview();
+});
+document.addEventListener('mouseup', e => {
+  if (!creating) return;
+  const p = creating.preview;
+  creating = null;
+  $('#preview-box')?.remove();
+  if (!p || p.w < 4 || p.h < 4) return;
+  const name = prompt('Field name (e.g. full_name):');
+  if (!name) return;
+  const f = {
+    id: uid(),
+    name: name.trim(),
+    type: state.mode === 'checkbox' ? 'checkbox' : 'text',
+    page: state.pageIndex,
+    x: Math.round(p.x), y: Math.round(p.y),
+    width: Math.round(p.w), height: Math.round(p.h),
+    font_size: state.mode === 'checkbox' ? 12 : Math.max(8, Math.min(p.h - 4, 12)),
+    align: 'left',
+  };
+  state.fields.push(f);
+  state.selectedId = f.id;
+  setMode('select');
+  renderFieldsOnCanvas();
+  renderFieldList();
+  syncPropsForm();
+});
+
+function renderPreview() {
+  let el = $('#preview-box');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'preview-box';
+    el.className = 'field-box ' + (creating.type === 'checkbox' ? 'checkbox' : '');
+    el.style.pointerEvents = 'none';
+    $('#field-layer').appendChild(el);
+  }
+  const p = creating.preview;
+  el.style.left = (p.x * state.pxPerPt) + 'px';
+  el.style.top = (p.y * state.pxPerPt) + 'px';
+  el.style.width = (p.w * state.pxPerPt) + 'px';
+  el.style.height = (p.h * state.pxPerPt) + 'px';
+}
+
+function setMode(m) {
+  state.mode = m;
+  $$('#mode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+  $('#canvas-wrap').classList.toggle('crosshair', m !== 'select');
+}
+$$('#mode button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+function renderFieldList() {
+  $('#field-count').textContent = `(${state.fields.length})`;
+  const list = $('#field-list');
+  list.innerHTML = '';
+  if (state.fields.length === 0) {
+    list.innerHTML = '<div class="empty">No fields yet.</div>';
+    return;
+  }
+  state.fields.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'field-row' + (f.id === state.selectedId ? ' selected' : '');
+    row.innerHTML = `<div class="name">${f.name || '(unnamed)'}</div>
+      <div class="badge">p${f.page + 1}</div>
+      <div class="badge">${f.type}</div>`;
+    row.addEventListener('click', () => {
+      if (f.page !== state.pageIndex) selectPage(f.page);
+      selectField(f.id);
+    });
+    list.appendChild(row);
+  });
+}
+
+function selectField(id) {
+  state.selectedId = id;
+  renderFieldsOnCanvas();
+  renderFieldList();
+  syncPropsForm();
+}
+
+function syncPropsForm() {
+  const f = state.fields.find(x => x.id === state.selectedId);
+  const form = $('#props-form');
+  const empty = $('#no-selection');
+  if (!f) { form.hidden = true; empty.hidden = false; return; }
+  form.hidden = false; empty.hidden = true;
+  form.elements.name.value = f.name;
+  form.elements.type.value = f.type;
+  form.elements.font_size.value = f.font_size ?? 11;
+  form.elements.align.value = f.align ?? 'left';
+  form.elements.x.value = Math.round(f.x);
+  form.elements.y.value = Math.round(f.y);
+  form.elements.width.value = Math.round(f.width);
+  form.elements.height.value = Math.round(f.height);
+  form.elements.page.value = f.page;
+}
+
+$('#props-form').addEventListener('input', e => {
+  const f = state.fields.find(x => x.id === state.selectedId);
+  if (!f) return;
+  const fd = new FormData(e.currentTarget);
+  f.name = fd.get('name').trim();
+  f.type = fd.get('type');
+  f.font_size = parseFloat(fd.get('font_size')) || 11;
+  f.align = fd.get('align');
+  f.x = parseFloat(fd.get('x')) || 0;
+  f.y = parseFloat(fd.get('y')) || 0;
+  f.width = parseFloat(fd.get('width')) || 10;
+  f.height = parseFloat(fd.get('height')) || 10;
+  const newPage = parseInt(fd.get('page'), 10) || 0;
+  if (newPage !== f.page && newPage >= 0 && newPage < state.meta.pages.length) {
+    f.page = newPage;
+    selectPage(newPage);
+  }
+  renderFieldsOnCanvas();
+  renderFieldList();
+});
+
+$('#delete-field').addEventListener('click', () => {
+  const f = state.fields.find(x => x.id === state.selectedId);
+  if (!f) return;
+  state.fields = state.fields.filter(x => x.id !== f.id);
+  state.selectedId = null;
+  renderFieldsOnCanvas();
+  renderFieldList();
+  syncPropsForm();
+});
+
+$('#stage').addEventListener('mousedown', e => {
+  if (state.mode !== 'select') return;
+  if (e.target.closest('.field-box')) return;
+  selectField(null);
+});
+
+$('#save').addEventListener('click', async () => {
+  const fields = state.fields.map(({ id, ...rest }) => rest);
+  const r = await fetch(`/api/templates/${HASH}/fields`, {
+    method: 'PUT',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({ fields }),
+  });
+  if (!r.ok) return toast('Save failed: ' + (await r.text()), 'bad');
+  toast(`Saved ${fields.length} fields`, 'ok');
+});
+
+$('#test-fill').addEventListener('click', async () => {
+  const data = {};
+  state.fields.forEach(f => {
+    data[f.name] = f.type === 'checkbox' ? true : f.name.replace(/_/g, ' ').toUpperCase();
+  });
+  const r = await fetch(`/api/templates/${HASH}/fill`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({ data }),
+  });
+  if (!r.ok) return toast('Test fill failed', 'bad');
+  const { download_id } = await r.json();
+  window.open(`/api/download/${download_id}`, '_blank');
+});
+
+window.addEventListener('keydown', e => {
+  if (e.target.matches('input, select, textarea')) return;
+  if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedId) {
+    $('#delete-field').click();
+  } else if (e.key === 'Escape') {
+    setMode('select');
+    selectField(null);
+  } else if (e.key === 't') setMode('text');
+  else if (e.key === 'c') setMode('checkbox');
+  else if (e.key === 'v') setMode('select');
+  else if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    $('#save').click();
+  }
+});
+
+loadTemplate();
+</script>
+</body>
+</html>

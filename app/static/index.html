@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AutoFill — PDF</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0: #07080c;
+    --bg-1: #0d0f15;
+    --bg-2: #141821;
+    --line: rgba(255,255,255,0.08);
+    --line-strong: rgba(255,255,255,0.16);
+    --text: #e7e9ee;
+    --text-dim: #9aa3b2;
+    --text-faint: #6b7280;
+    --accent: #7c5cff;
+    --accent-2: #22d3ee;
+    --good: #34d399;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; background: var(--bg-0); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(124,92,255,0.18), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, rgba(34,211,238,0.12), transparent 60%),
+      var(--bg-0);
+  }
+  .shell { max-width: 1080px; margin: 0 auto; padding: 56px 28px 96px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-weight: 700; color: #0b0d12;
+    box-shadow: 0 8px 24px -8px rgba(124,92,255,0.6);
+  }
+  .brand-name { font-weight: 600; letter-spacing: -0.01em; }
+  .brand-sub { color: var(--text-faint); font-size: 12px; }
+  .pill { padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); font-size: 12px; color: var(--text-dim); }
+
+  .hero { margin-bottom: 36px; }
+  .hero h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 8px; letter-spacing: -0.02em; line-height: 1.1; }
+  .hero p { color: var(--text-dim); margin: 0; max-width: 60ch; }
+
+  .tabs { display: inline-flex; padding: 4px; background: var(--bg-1); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 20px; }
+  .tab { background: transparent; border: 0; color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font: inherit; cursor: pointer; transition: 120ms; }
+  .tab[aria-selected="true"] { background: rgba(255,255,255,0.06); color: var(--text); }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0)) , var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .card h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; letter-spacing: 0.01em; }
+  .card .hint { color: var(--text-faint); font-size: 12px; margin-bottom: 14px; }
+
+  .drop {
+    position: relative;
+    border: 1px dashed var(--line-strong);
+    border-radius: 12px;
+    padding: 22px;
+    text-align: center;
+    color: var(--text-dim);
+    transition: 150ms;
+    cursor: pointer;
+    background: rgba(255,255,255,0.02);
+  }
+  .drop:hover { border-color: rgba(124,92,255,0.5); color: var(--text); }
+  .drop.drag { border-color: var(--accent); background: rgba(124,92,255,0.08); color: var(--text); }
+  .drop.has-file { border-style: solid; border-color: var(--line-strong); background: rgba(255,255,255,0.03); }
+  .drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .drop .icon { font-size: 22px; margin-bottom: 6px; }
+  .drop .filename { color: var(--text); font-weight: 500; word-break: break-all; }
+  .drop .meta { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+
+  .row { display: flex; align-items: center; gap: 10px; }
+  .switch { display: inline-flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: 13px; user-select: none; cursor: pointer; }
+  .switch input { appearance: none; width: 32px; height: 18px; background: rgba(255,255,255,0.1); border-radius: 999px; position: relative; cursor: pointer; transition: 150ms; }
+  .switch input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: #fff; border-radius: 50%; transition: 150ms; }
+  .switch input:checked { background: var(--accent); }
+  .switch input:checked::after { left: 16px; }
+
+  .actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .btn { font: inherit; cursor: pointer; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line-strong); background: rgba(255,255,255,0.04); color: var(--text); transition: 120ms; }
+  .btn:hover { background: rgba(255,255,255,0.08); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #5b8cff); border-color: transparent; color: white; font-weight: 600; box-shadow: 0 8px 24px -10px rgba(124,92,255,0.7); }
+  .btn-primary:hover { filter: brightness(1.08); background: linear-gradient(135deg, var(--accent), #5b8cff); }
+  .btn-warn { background: linear-gradient(135deg, #f59e0b, #fb923c); border-color: transparent; color: #1a1206; font-weight: 600; }
+  .btn-ghost { background: transparent; }
+
+  .panel { margin-top: 22px; }
+  .panel.hidden { display: none; }
+
+  .kvs { display: grid; gap: 8px; }
+  .kv { display: grid; grid-template-columns: 160px 1fr; gap: 10px; align-items: center; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 1px solid var(--line); border-radius: 10px; }
+  .kv .k { color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .kv .v { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; color: var(--text); word-break: break-all; }
+
+  .alerts { display: grid; gap: 8px; margin-top: 12px; }
+  .alert { display: flex; gap: 10px; padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+  .alert.warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); color: #fde68a; }
+  .alert.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.25); color: #a7f3d0; }
+  .alert.bad { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); color: #fecaca; }
+
+  .toast-wrap { position: fixed; bottom: 24px; right: 24px; display: grid; gap: 10px; z-index: 50; }
+  .toast { background: var(--bg-2); border: 1px solid var(--line-strong); padding: 12px 14px; border-radius: 12px; box-shadow: 0 12px 40px -12px rgba(0,0,0,0.6); animation: slide 200ms ease-out; max-width: 340px; }
+  @keyframes slide { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  .progress { height: 3px; width: 100%; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; margin-top: 14px; }
+  .progress > div { height: 100%; width: 30%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); animation: slide-x 1.2s ease-in-out infinite; }
+  @keyframes slide-x { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+
+  footer { color: var(--text-faint); font-size: 12px; margin-top: 56px; text-align: center; }
+  a { color: var(--accent-2); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="brand">
+      <div class="brand-mark">A</div>
+      <div>
+        <div class="brand-name">AutoFill</div>
+        <div class="brand-sub">PDF extraction & form filling</div>
+      </div>
+    </div>
+    <div class="pill">v2 · web</div>
+  </header>
+
+  <section class="hero">
+    <h1>Fill PDF forms in seconds.</h1>
+    <p>Drop a filled PDF to extract data and apply it to a blank form, or feed in JSON directly. OCR fallback for scanned documents.</p>
+  </section>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="templates" aria-selected="true">Templates</button>
+    <button class="tab" role="tab" data-tab="extract" aria-selected="false">Extract & Fill</button>
+    <button class="tab" role="tab" data-tab="json" aria-selected="false">Fill from JSON</button>
+  </div>
+
+  <!-- Templates -->
+  <section data-panel="templates">
+    <div class="card">
+      <h3>New template</h3>
+      <div class="hint">Upload any blank PDF — even a scanned one. Then map each field by drawing rectangles on the page.</div>
+      <label class="drop" data-drop="tpl-new" style="margin-top: 6px;">
+        <input type="file" accept="application/pdf" id="tpl-new-input" />
+        <div class="icon">+</div>
+        <div class="label">Drop blank PDF or click to upload</div>
+      </label>
+      <div class="progress hidden" id="tpl-progress"><div></div></div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h3>Saved templates</h3>
+      <div class="hint">Edit field positions or fill out a saved template directly.</div>
+      <div id="tpl-list" style="margin-top: 12px; display: grid; gap: 10px;"></div>
+    </div>
+
+    <div class="panel hidden" id="tpl-fill-panel">
+      <div class="card">
+        <h3 id="tpl-fill-name"></h3>
+        <div class="hint">Enter values for each mapped field, then download the filled PDF.</div>
+        <div class="kvs" id="tpl-fill-form" style="margin-top: 14px;"></div>
+        <div class="actions">
+          <button class="btn btn-primary" id="tpl-fill-submit">Fill & download</button>
+          <button class="btn btn-ghost" id="tpl-fill-cancel">Close</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Extract & Fill -->
+  <section data-panel="extract" hidden>
+    <div class="grid">
+      <div class="card">
+        <h3>Filled PDF</h3>
+        <div class="hint">Source document to extract data from.</div>
+        <label class="drop" data-drop="filled">
+          <input type="file" accept="application/pdf" id="filled-input" />
+          <div class="icon">↑</div>
+          <div class="label">Drop PDF or click to browse</div>
+        </label>
+      </div>
+      <div class="card">
+        <h3>Empty form</h3>
+        <div class="hint">Blank PDF that will be filled.</div>
+        <label class="drop" data-drop="empty">
+          <input type="file" accept="application/pdf" id="empty-input" />
+          <div class="icon">↑</div>
+          <div class="label">Drop PDF or click to browse</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="row" style="justify-content: space-between;">
+        <label class="switch">
+          <input type="checkbox" id="force-fill" />
+          <span>Force fill — skip validation</span>
+        </label>
+        <div class="actions" style="margin: 0;">
+          <button class="btn btn-primary" id="run-extract">Extract & fill</button>
+        </div>
+      </div>
+      <div class="progress hidden" id="extract-progress"><div></div></div>
+    </div>
+
+    <div class="panel hidden" id="preview-panel">
+      <div class="card">
+        <h3>Extracted data</h3>
+        <div class="hint">Review before filling. Click any value to edit.</div>
+        <div class="kvs" id="kvs"></div>
+        <div class="alerts" id="alerts"></div>
+        <div class="actions">
+          <button class="btn btn-warn" id="force-fill-btn">Fill anyway</button>
+          <button class="btn btn-ghost" id="cancel-preview">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fill from JSON -->
+  <section data-panel="json" hidden>
+    <div class="grid">
+      <div class="card">
+        <h3>JSON data</h3>
+        <div class="hint">Object of field names to values.</div>
+        <label class="drop" data-drop="json">
+          <input type="file" accept="application/json,.json" id="json-input" />
+          <div class="icon">{ }</div>
+          <div class="label">Drop JSON or click to browse</div>
+        </label>
+      </div>
+      <div class="card">
+        <h3>Empty form</h3>
+        <div class="hint">Blank PDF that will be filled.</div>
+        <label class="drop" data-drop="json-form">
+          <input type="file" accept="application/pdf" id="json-form-input" />
+          <div class="icon">↑</div>
+          <div class="label">Drop PDF or click to browse</div>
+        </label>
+      </div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <div class="row" style="justify-content: flex-end;">
+        <button class="btn btn-primary" id="run-json">Fill from JSON</button>
+      </div>
+      <div class="progress hidden" id="json-progress"><div></div></div>
+    </div>
+  </section>
+
+  <footer>Local processing · files never leave this machine.</footer>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+
+  const state = { filled: null, empty: null, json: null, jsonForm: null, data: null,
+                   tplNew: null, tplFillHash: null, tplFillFields: [] };
+
+  // Tabs
+  $$('.tab').forEach(t => t.addEventListener('click', () => {
+    $$('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
+    $$('[data-panel]').forEach(p => p.hidden = p.dataset.panel !== t.dataset.tab);
+  }));
+
+  // Drop zones
+  function wireDrop(key, inputSel, dropSel) {
+    const drop = $(`.drop[data-drop="${dropSel}"]`);
+    const input = $(inputSel);
+    const label = drop.querySelector('.label');
+    const setFile = (f) => {
+      state[key] = f;
+      drop.classList.toggle('has-file', !!f);
+      if (f) {
+        label.innerHTML = `<div class="filename">${f.name}</div><div class="meta">${(f.size/1024).toFixed(1)} KB</div>`;
+      } else {
+        label.textContent = 'Drop file or click to browse';
+      }
+    };
+    input.addEventListener('change', e => setFile(e.target.files[0] || null));
+    ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+    ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+    drop.addEventListener('drop', e => {
+      const f = e.dataTransfer.files[0];
+      if (f) { input.files = e.dataTransfer.files; setFile(f); }
+    });
+  }
+  wireDrop('filled', '#filled-input', 'filled');
+  wireDrop('empty', '#empty-input', 'empty');
+  wireDrop('json', '#json-input', 'json');
+  wireDrop('jsonForm', '#json-form-input', 'json-form');
+  wireDrop('tplNew', '#tpl-new-input', 'tpl-new');
+
+  // Templates tab
+  async function loadTemplates() {
+    const r = await fetch('/api/templates');
+    const { templates } = await r.json();
+    const list = $('#tpl-list');
+    list.innerHTML = '';
+    if (!templates.length) {
+      list.innerHTML = '<div class="alert" style="color: var(--text-faint); border: 1px dashed var(--line); background: transparent;">No templates yet. Upload a blank PDF above to start.</div>';
+      return;
+    }
+    templates.forEach(t => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,0.025);';
+      row.innerHTML = `
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.name}</div>
+          <div style="color: var(--text-faint); font-size: 12px; font-family: 'JetBrains Mono', monospace;">
+            ${t.hash} · ${t.page_count} page${t.page_count>1?'s':''} · ${t.field_count} field${t.field_count!==1?'s':''}
+          </div>
+        </div>
+        <button class="btn" data-action="fill">Fill</button>
+        <button class="btn" data-action="edit">Edit</button>
+        <button class="btn" data-action="del" style="color: var(--bad);">×</button>
+      `;
+      row.querySelector('[data-action=edit]').onclick = () => location.href = `/editor?h=${t.hash}`;
+      row.querySelector('[data-action=fill]').onclick = () => openFillForm(t);
+      row.querySelector('[data-action=del]').onclick = async () => {
+        if (!confirm(`Delete template "${t.name}"?`)) return;
+        await fetch(`/api/templates/${t.hash}`, { method: 'DELETE' });
+        loadTemplates();
+      };
+      list.appendChild(row);
+    });
+  }
+
+  // Upload new template
+  const tplNewInput = $('#tpl-new-input');
+  tplNewInput.addEventListener('change', async () => {
+    if (!state.tplNew) return;
+    setBusy('#tpl-progress', true);
+    try {
+      const fd = new FormData();
+      fd.append('pdf', state.tplNew);
+      fd.append('name', state.tplNew.name);
+      const r = await fetch('/api/templates', { method: 'POST', body: fd });
+      if (!r.ok) throw new Error(await r.text());
+      const meta = await r.json();
+      toast('Template ingested. Opening editor…', 'ok');
+      setTimeout(() => location.href = `/editor?h=${meta.hash}`, 600);
+    } catch (e) {
+      toast('Upload failed: ' + e.message, 'bad');
+    } finally {
+      setBusy('#tpl-progress', false);
+    }
+  });
+
+  async function openFillForm(t) {
+    const r = await fetch(`/api/templates/${t.hash}`);
+    if (!r.ok) return toast('Failed to load template', 'bad');
+    const meta = await r.json();
+    if (!meta.fields.length) {
+      return toast('Template has no mapped fields yet — edit it first.', 'warn');
+    }
+    state.tplFillHash = t.hash;
+    state.tplFillFields = meta.fields;
+    $('#tpl-fill-name').textContent = `Fill: ${meta.name}`;
+    const form = $('#tpl-fill-form');
+    form.innerHTML = '';
+    meta.fields.forEach(f => {
+      const row = document.createElement('div');
+      row.className = 'kv';
+      row.innerHTML = `<div class="k">${f.name}<br><span style="text-transform:none; letter-spacing:0; font-size:10px;">${f.type} · p${f.page+1}</span></div>`;
+      const input = document.createElement(f.type === 'checkbox' ? 'input' : 'input');
+      input.dataset.field = f.name;
+      if (f.type === 'checkbox') {
+        input.type = 'checkbox';
+        input.style.cssText = 'width: 18px; height: 18px; accent-color: var(--accent);';
+      } else {
+        input.type = 'text';
+        input.style.cssText = 'background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text); padding: 6px 10px; border-radius: 6px; font-family: inherit; width: 100%;';
+        input.placeholder = f.name.replace(/_/g, ' ');
+      }
+      const wrap = document.createElement('div');
+      wrap.appendChild(input);
+      row.appendChild(wrap);
+      form.appendChild(row);
+    });
+    $('#tpl-fill-panel').classList.remove('hidden');
+    $('#tpl-fill-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  $('#tpl-fill-cancel').addEventListener('click', () => $('#tpl-fill-panel').classList.add('hidden'));
+
+  $('#tpl-fill-submit').addEventListener('click', async () => {
+    const data = {};
+    $$('#tpl-fill-form input').forEach(el => {
+      data[el.dataset.field] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+    try {
+      const r = await fetch(`/api/templates/${state.tplFillHash}/fill`, {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({ data }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const { download_id } = await r.json();
+      toast('Form filled. Downloading…', 'ok');
+      downloadResult(download_id);
+    } catch (e) {
+      toast('Fill failed: ' + e.message, 'bad');
+    }
+  });
+
+  // Reload list when Templates tab activates, and on first load.
+  $$('.tab').forEach(t => t.addEventListener('click', () => {
+    if (t.dataset.tab === 'templates') loadTemplates();
+  }));
+  loadTemplates();
+
+  // Toasts
+  function toast(msg, kind='ok') {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = `<div class="alert ${kind}">${msg}</div>`;
+    $('#toasts').appendChild(el);
+    setTimeout(() => el.remove(), 4500);
+  }
+
+  function setBusy(progressId, busy) {
+    $(progressId).classList.toggle('hidden', !busy);
+  }
+
+  function renderPreview(data, errors) {
+    state.data = { ...data };
+    const kvs = $('#kvs');
+    kvs.innerHTML = '';
+    Object.entries(data).forEach(([k, v]) => {
+      const row = document.createElement('div');
+      row.className = 'kv';
+      row.innerHTML = `<div class="k">${k.replace(/_/g, ' ')}</div>`;
+      const val = document.createElement('div');
+      val.className = 'v';
+      val.contentEditable = 'true';
+      val.spellcheck = false;
+      val.textContent = v;
+      val.addEventListener('input', () => { state.data[k] = val.textContent; });
+      row.appendChild(val);
+      kvs.appendChild(row);
+    });
+    const alerts = $('#alerts');
+    alerts.innerHTML = '';
+    if (errors.length === 0) {
+      alerts.innerHTML = `<div class="alert ok">All checks passed.</div>`;
+    } else {
+      errors.forEach(e => {
+        const a = document.createElement('div');
+        a.className = 'alert warn';
+        a.textContent = e;
+        alerts.appendChild(a);
+      });
+    }
+    $('#preview-panel').classList.remove('hidden');
+  }
+
+  async function downloadResult(downloadId) {
+    const a = document.createElement('a');
+    a.href = `/api/download/${downloadId}`;
+    a.download = 'filled_form.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  // Extract & fill
+  $('#run-extract').addEventListener('click', async () => {
+    if (!state.filled || !state.empty) return toast('Select both PDFs first.', 'warn');
+    setBusy('#extract-progress', true);
+    try {
+      const fd = new FormData();
+      fd.append('filled_pdf', state.filled);
+      const res = await fetch('/api/extract', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const { data, errors } = await res.json();
+
+      if ($('#force-fill').checked || errors.length === 0) {
+        await runFill(data);
+      } else {
+        renderPreview(data, errors);
+      }
+    } catch (e) {
+      toast('Extraction failed: ' + e.message, 'bad');
+    } finally {
+      setBusy('#extract-progress', false);
+    }
+  });
+
+  async function runFill(data) {
+    setBusy('#extract-progress', true);
+    try {
+      const fd = new FormData();
+      fd.append('empty_form', state.empty);
+      fd.append('data', JSON.stringify(data));
+      const res = await fetch('/api/fill', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const { download_id } = await res.json();
+      $('#preview-panel').classList.add('hidden');
+      toast('Form filled. Downloading…', 'ok');
+      downloadResult(download_id);
+    } catch (e) {
+      toast('Fill failed: ' + e.message, 'bad');
+    } finally {
+      setBusy('#extract-progress', false);
+    }
+  }
+
+  $('#force-fill-btn').addEventListener('click', () => runFill(state.data || {}));
+  $('#cancel-preview').addEventListener('click', () => $('#preview-panel').classList.add('hidden'));
+
+  // Fill from JSON
+  $('#run-json').addEventListener('click', async () => {
+    if (!state.json || !state.jsonForm) return toast('Select both files first.', 'warn');
+    setBusy('#json-progress', true);
+    try {
+      const fd = new FormData();
+      fd.append('empty_form', state.jsonForm);
+      fd.append('json_file', state.json);
+      const res = await fetch('/api/fill-from-json', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const { download_id } = await res.json();
+      toast('Form filled. Downloading…', 'ok');
+      downloadResult(download_id);
+    } catch (e) {
+      toast('Fill failed: ' + e.message, 'bad');
+    } finally {
+      setBusy('#json-progress', false);
+    }
+  });
+</script>
+</body>
+</html>

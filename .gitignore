@@ -1,0 +1,29 @@
+# Virtual envs
+.venv/
+.venv.broken/
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# App data (user-generated templates, rendered pages)
+app/data/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Claude Code local config
+.claude/settings.local.json
+
+# Build artifacts
+build/
+dist/
+*.spec
